@@ -214,8 +214,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                   key={p}
                   onClick={() => setChartPeriod(p)}
                   className={`px-3 py-1.5 text-xs rounded-md ${chartPeriod === p
-                      ? "bg-zinc-800 text-white"
-                      : "text-zinc-400 hover:text-white"
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-400 hover:text-white"
                     }`}
                 >
                   {p.replace("-", " ")}
@@ -259,10 +259,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 tickFormatter={(v) => `$${v}`}
               />
               <Tooltip
-                formatter={(v: number) => [
-                  `$${v.toFixed(2)}`,
-                  "Sales",
-                ]}
+                contentStyle={{
+                  backgroundColor: "#09090b",
+                  border: "1px solid #27272a",
+                  borderRadius: "8px",
+                  color: "#fff",
+                }}
+                labelStyle={{ color: "#a1a1aa" }}
+                formatter={(v: number) => [`$${v.toFixed(2)}`, "Sales"]}
               />
               <Area
                 type="monotone"
