@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Order, Location } from '../../../../types';
-import { formatCurrency, formatDate } from '../../../(backend)/services/dataService';
+import { formatCurrency, formatDate } from '../../../backend/services/dataService';
 import { Search, Filter, MapPin, X, ChevronRight } from 'lucide-react';
 
 interface SalesProps {

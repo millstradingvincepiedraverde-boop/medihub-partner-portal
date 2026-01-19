@@ -1,31 +1,57 @@
-import React, { useMemo, useState } from 'react';
-import { Order } from '../../../../types';
-import { formatCurrency } from '../../../(backend)/services/dataService';
-import StatCard from '../../../(frontend)/components/StatCard';
-import { DollarSign, ShoppingBag, Calendar, TrendingUp } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import React, { useMemo, useState } from "react";
+import { Order } from "../../../../types";
+import { formatCurrency } from "../../../backend/services/dataService";
+import StatCard from "../../../(frontend)/components/StatCard";
+import {
+  DollarSign,
+  ShoppingBag,
+  Calendar,
+  TrendingUp,
+} from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 interface DashboardProps {
   orders: Order[];
+  lifetimeRevenue: number;
+  lifetimeReferralFees: number;
 }
 
-type ChartPeriod = 'weekly' | 'monthly' | 'all-time';
+type ChartPeriod = "weekly" | "monthly" | "all-time";
 
-const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
-  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('monthly');
+const Dashboard: React.FC<DashboardProps> = ({
+  orders,
+  lifetimeRevenue,
+  lifetimeReferralFees,
+}) => {
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("monthly");
 
-  // Calculate Stats
+  console.log('📊 Dashboard Data:', {
+    ordersCount: orders.length,
+    lifetimeRevenue,
+    lifetimeReferralFees
+  });
+
+  // rest of your code...
+  /**
+   * =====================
+   * Lifetime Stats
+   * =====================
+   * Backend owns money.
+   * Frontend owns quantities & visuals.
+   */
   const stats = useMemo(() => {
-    let lifetimeRevenue = 0;
-    let lifetimeReferralFees = 0;
-    let lifetimeQuantity =  orders.length;;
+    let lifetimeQuantity = 0;
 
-    orders.forEach(order => {
-      lifetimeRevenue += order.total_ex_gst;
-      lifetimeReferralFees += order.commission_amount;
-
-      // ✅ quantities live in order items (NOT on the order)
-      order.items?.forEach(item => {
+    orders.forEach((order) => {
+      order.items?.forEach((item) => {
         lifetimeQuantity += item.quantity;
       });
     });
@@ -40,22 +66,28 @@ const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
       lifetimeQuantity,
       lifetimeAOV,
     };
-  }, [orders]);
+  }, [orders, lifetimeRevenue, lifetimeReferralFees]);
 
-
-
-  // Prepare Chart Data based on selected period
+  /**
+   * =====================
+   * Chart Data
+   * =====================
+   */
   const chartData = useMemo(() => {
-    const data: Record<string, { sales: number; sortDate: number }> = {};
-    const now = new Date();
-    now.setHours(0, 0, 0, 0); // Normalize today
+    const data: Record<
+      string,
+      { sales: number; sortDate: number }
+    > = {};
 
-    if (chartPeriod === 'weekly') {
-      // Show last 8 weeks
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    if (chartPeriod === "weekly") {
+      // Last 8 weeks
       for (let i = 7; i >= 0; i--) {
         const d = new Date(now);
-        d.setDate(d.getDate() - (i * 7));
-        // Find Monday of that week
+        d.setDate(d.getDate() - i * 7);
+
         const day = d.getDay();
         const diff = d.getDate() - day + (day === 0 ? -6 : 1);
         const weekStart = new Date(d.setDate(diff));
@@ -64,12 +96,12 @@ const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
         data[key] = { sales: 0, sortDate: weekStart.getTime() };
       }
 
-      orders.forEach(order => {
+      orders.forEach((order) => {
         const d = new Date(order.order_date);
-        const diffTime = now.getTime() - d.getTime();
-        const diffDays = diffTime / (1000 * 3600 * 24);
+        const diffDays =
+          (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
 
-        if (diffDays <= 60) { // Approx 8 weeks buffer
+        if (diffDays <= 60) {
           const day = d.getDay();
           const diff = d.getDate() - day + (day === 0 ? -6 : 1);
           const weekStart = new Date(d);
@@ -79,49 +111,58 @@ const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
           const key = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
           if (data[key]) {
             data[key].sales += order.total_ex_gst;
-          } else {
-            // Handle edge cases where loop might miss (though loop is standard)
-            // or if data is slightly older than loop but inside filter
-            // For strict visuals, we only show initialized keys, but let's be flexible
-            // data[key] = { sales: order.total_ex_gst, sortDate: weekStart.getTime() };
           }
         }
       });
-    } else if (chartPeriod === 'monthly') {
-      // Show last 6 months
+    } else if (chartPeriod === "monthly") {
+      // Last 6 months
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = d.toLocaleDateString('en-AU', { month: 'short' });
+        const key = d.toLocaleDateString("en-AU", { month: "short" });
         data[key] = { sales: 0, sortDate: d.getTime() };
       }
 
-      orders.forEach(order => {
+      orders.forEach((order) => {
         const d = new Date(order.order_date);
-        // Only count if within the last ~6-7 months to be safe
-        const monthsDiff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
-        if (monthsDiff <= 6 && monthsDiff >= 0) {
-          const key = d.toLocaleDateString('en-AU', { month: 'short' });
+        const monthsDiff =
+          (now.getFullYear() - d.getFullYear()) * 12 +
+          (now.getMonth() - d.getMonth());
+
+        if (monthsDiff >= 0 && monthsDiff <= 6) {
+          const key = d.toLocaleDateString("en-AU", { month: "short" });
           if (data[key]) {
             data[key].sales += order.total_ex_gst;
           }
         }
       });
     } else {
-      // All time - Group by Month
-      orders.forEach(order => {
+      // All time
+      orders.forEach((order) => {
         const d = new Date(order.order_date);
-        const key = d.toLocaleDateString('en-AU', { month: 'short', year: '2-digit' });
-        const sortDate = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+        const key = d.toLocaleDateString("en-AU", {
+          month: "short",
+          year: "2-digit",
+        });
+        const sortDate = new Date(
+          d.getFullYear(),
+          d.getMonth(),
+          1
+        ).getTime();
 
         if (!data[key]) {
           data[key] = { sales: 0, sortDate };
         }
+
         data[key].sales += order.total_ex_gst;
       });
     }
 
     return Object.entries(data)
-      .map(([name, val]) => ({ name, sales: val.sales, sortDate: val.sortDate }))
+      .map(([name, val]) => ({
+        name,
+        sales: val.sales,
+        sortDate: val.sortDate,
+      }))
       .sort((a, b) => a.sortDate - b.sortDate);
   }, [orders, chartPeriod]);
 
@@ -129,7 +170,9 @@ const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
         <h2 className="text-2xl font-bold text-white">Dashboard</h2>
-        <p className="text-zinc-400">Overview of your performance.</p>
+        <p className="text-zinc-400">
+          Overview of your performance.
+        </p>
       </div>
 
       {/* Stat Cards */}
@@ -157,84 +200,76 @@ const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
         />
       </div>
 
-      {/* Chart Section */}
-      <div className="bg-zinc-900 p-6 rounded-xl shadow-sm border border-zinc-800">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-          <h3 className="text-lg font-semibold text-white">Sales Trend</h3>
+      {/* Chart */}
+      <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-800">
+        <div className="flex justify-between mb-6">
+          <h3 className="text-lg font-semibold text-white">
+            Sales Trend
+          </h3>
 
-          {/* Period Toggle */}
-          <div className="bg-zinc-950 p-1 rounded-lg border border-zinc-800 inline-flex self-start sm:self-auto">
-            <button
-              onClick={() => setChartPeriod('all-time')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${chartPeriod === 'all-time'
-                ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
-                : 'text-zinc-400 hover:text-white'
-                }`}
-            >
-              All-time
-            </button>
-            <button
-              onClick={() => setChartPeriod('monthly')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${chartPeriod === 'monthly'
-                ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
-                : 'text-zinc-400 hover:text-white'
-                }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setChartPeriod('weekly')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${chartPeriod === 'weekly'
-                ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
-                : 'text-zinc-400 hover:text-white'
-                }`}
-            >
-              Weekly
-            </button>
+          <div className="bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+            {(["all-time", "monthly", "weekly"] as ChartPeriod[]).map(
+              (p) => (
+                <button
+                  key={p}
+                  onClick={() => setChartPeriod(p)}
+                  className={`px-3 py-1.5 text-xs rounded-md ${chartPeriod === p
+                      ? "bg-zinc-800 text-white"
+                      : "text-zinc-400 hover:text-white"
+                    }`}
+                >
+                  {p.replace("-", " ")}
+                </button>
+              )
+            )}
           </div>
         </div>
 
-        <div className="h-[300px] w-full">
+        <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData}>
               <defs>
-                <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ffffff" stopOpacity={0.1} />
-                  <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
+                <linearGradient
+                  id="colorSales"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="5%" stopOpacity={0.1} />
+                  <stop offset="95%" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
+
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="#27272a"
+              />
               <XAxis
                 dataKey="name"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#71717a', fontSize: 12 }}
-                dy={10}
+                tick={{ fill: "#71717a", fontSize: 12 }}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#71717a', fontSize: 12 }}
-                tickFormatter={(value) => `$${value}`}
+                tick={{ fill: "#71717a", fontSize: 12 }}
+                tickFormatter={(v) => `$${v}`}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: '#18181b',
-                  borderRadius: '8px',
-                  border: '1px solid #27272a',
-                  color: '#fff'
-                }}
-                itemStyle={{ color: '#fff' }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, 'Sales']}
+                formatter={(v: number) => [
+                  `$${v.toFixed(2)}`,
+                  "Sales",
+                ]}
               />
               <Area
                 type="monotone"
                 dataKey="sales"
                 stroke="#ffffff"
                 strokeWidth={2}
-                fillOpacity={1}
                 fill="url(#colorSales)"
-                animationDuration={500}
               />
             </AreaChart>
           </ResponsiveContainer>
