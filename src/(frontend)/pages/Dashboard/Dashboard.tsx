@@ -217,7 +217,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        <div className="h-[300px]">
+        {/* <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%" aspect={4}>
             <AreaChart data={chartData}>
               <defs>
@@ -269,7 +269,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               />
             </AreaChart>
           </ResponsiveContainer>
-        </div> */}
+        </div>  */}
       </div>
     </div>
   );
