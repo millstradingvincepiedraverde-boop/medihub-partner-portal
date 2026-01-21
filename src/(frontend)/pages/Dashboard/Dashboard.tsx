@@ -39,14 +39,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     lifetimeReferralFees
   });
 
-  // rest of your code...
-  /**
-   * =====================
-   * Lifetime Stats
-   * =====================
-   * Backend owns money.
-   * Frontend owns quantities & visuals.
-   */
   const stats = useMemo(() => {
     let lifetimeQuantity = 0;
 
@@ -225,8 +217,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%" aspect={4}>
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient
