@@ -10,26 +10,47 @@ async function fetchAllOrders() {
   let hasNextPage = true;
 
   const query = `
-    query ($first: Int!, $after: String) {
-      orders(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
-        pageInfo { hasNextPage endCursor }
-        edges {
-          node {
+  query ($first: Int!, $after: String) {
+    orders(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        node {
+          id
+          name
+          createdAt
+          displayFinancialStatus
+
+          customer {
             id
-            name
-            createdAt
-            displayFinancialStatus
-            totalPriceSet {
-              shopMoney { amount }
-            }
-            lineItems(first: 100) {
-              edges {
-                node {
-                  title
-                  quantity
-                  originalUnitPriceSet {
-                    shopMoney { amount }
-                  }
+            displayName
+          }
+
+          subtotalPriceSet {
+            shopMoney { amount }
+          }
+
+          totalTaxSet {
+            shopMoney { amount }
+          }
+
+          totalDiscountsSet {
+            shopMoney { amount }
+          }
+
+          totalPriceSet {
+            shopMoney { amount }
+          }
+
+          lineItems(first: 100) {
+            edges {
+              node {
+                title
+                quantity
+                originalUnitPriceSet {
+                  shopMoney { amount }
                 }
               }
             }
@@ -37,6 +58,7 @@ async function fetchAllOrders() {
         }
       }
     }
+  }
   `;
 
   while (hasNextPage) {

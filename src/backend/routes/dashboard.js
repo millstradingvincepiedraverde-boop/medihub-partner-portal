@@ -19,13 +19,13 @@ router.get('/dashboard', async (req, res) => {
       order_name: order.name,
       order_date: order.createdAt,
       status: order.displayFinancialStatus,
+
+      shopify_customer_id: order.customer?.id || null,
+      customer_name: order.customer?.displayName || 'Wews',
+
       total_ex_gst: parseFloat(
         order.totalPriceSet.shopMoney.amount
       ),
-
-      // 👇 ADD THESE
-      customer_email:
-        order.customer?.email || order.email || null,
 
       items: order.lineItems.edges.map(i => ({
         title: i.node.title,
@@ -35,7 +35,6 @@ router.get('/dashboard', async (req, res) => {
         ),
       })),
     }));
-
 
     // 💾 Save to MySQL
     await saveOrdersToDB(orders);
