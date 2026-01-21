@@ -66,105 +66,105 @@ const Dashboard: React.FC<DashboardProps> = ({
       lifetimeQuantity,
       lifetimeAOV,
     };
-  }, [orders, lifetimeRevenue, lifetimeReferralFees]);
+  }, [orders, lifetimeRevenue, lifetimeReferralFees,]);
 
   /**
    * =====================
    * Chart Data
    * =====================
    */
-  const chartData = useMemo(() => {
-    const data: Record<
-      string,
-      { sales: number; sortDate: number }
-    > = {};
+  // const chartData = useMemo(() => {
+  //   const data: Record<
+  //     string,
+  //     { sales: number; sortDate: number }
+  //   > = {};
 
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+  //   const now = new Date();
+  //   now.setHours(0, 0, 0, 0);
 
-    if (chartPeriod === "weekly") {
-      // Last 8 weeks
-      for (let i = 7; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(d.getDate() - i * 7);
+  //   if (chartPeriod === "weekly") {
+  //     // Last 8 weeks
+  //     for (let i = 7; i >= 0; i--) {
+  //       const d = new Date(now);
+  //       d.setDate(d.getDate() - i * 7);
 
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-        const weekStart = new Date(d.setDate(diff));
+  //       const day = d.getDay();
+  //       const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  //       const weekStart = new Date(d.setDate(diff));
 
-        const key = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
-        data[key] = { sales: 0, sortDate: weekStart.getTime() };
-      }
+  //       const key = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
+  //       data[key] = { sales: 0, sortDate: weekStart.getTime() };
+  //     }
 
-      orders.forEach((order) => {
-        const d = new Date(order.order_date);
-        const diffDays =
-          (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
+  //     orders.forEach((order) => {
+  //       const d = new Date(order.order_date);
+  //       const diffDays =
+  //         (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
 
-        if (diffDays <= 60) {
-          const day = d.getDay();
-          const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-          const weekStart = new Date(d);
-          weekStart.setDate(diff);
-          weekStart.setHours(0, 0, 0, 0);
+  //       if (diffDays <= 60) {
+  //         const day = d.getDay();
+  //         const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  //         const weekStart = new Date(d);
+  //         weekStart.setDate(diff);
+  //         weekStart.setHours(0, 0, 0, 0);
 
-          const key = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
-          if (data[key]) {
-            data[key].sales += order.total_ex_gst;
-          }
-        }
-      });
-    } else if (chartPeriod === "monthly") {
-      // Last 6 months
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = d.toLocaleDateString("en-AU", { month: "short" });
-        data[key] = { sales: 0, sortDate: d.getTime() };
-      }
+  //         const key = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
+  //         if (data[key]) {
+  //           data[key].sales += order.total_ex_gst;
+  //         }
+  //       }
+  //     });
+  //   } else if (chartPeriod === "monthly") {
+  //     // Last 6 months
+  //     for (let i = 5; i >= 0; i--) {
+  //       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+  //       const key = d.toLocaleDateString("en-AU", { month: "short" });
+  //       data[key] = { sales: 0, sortDate: d.getTime() };
+  //     }
 
-      orders.forEach((order) => {
-        const d = new Date(order.order_date);
-        const monthsDiff =
-          (now.getFullYear() - d.getFullYear()) * 12 +
-          (now.getMonth() - d.getMonth());
+  //     orders.forEach((order) => {
+  //       const d = new Date(order.order_date);
+  //       const monthsDiff =
+  //         (now.getFullYear() - d.getFullYear()) * 12 +
+  //         (now.getMonth() - d.getMonth());
 
-        if (monthsDiff >= 0 && monthsDiff <= 6) {
-          const key = d.toLocaleDateString("en-AU", { month: "short" });
-          if (data[key]) {
-            data[key].sales += order.total_ex_gst;
-          }
-        }
-      });
-    } else {
-      // All time
-      orders.forEach((order) => {
-        const d = new Date(order.order_date);
-        const key = d.toLocaleDateString("en-AU", {
-          month: "short",
-          year: "2-digit",
-        });
-        const sortDate = new Date(
-          d.getFullYear(),
-          d.getMonth(),
-          1
-        ).getTime();
+  //       if (monthsDiff >= 0 && monthsDiff <= 6) {
+  //         const key = d.toLocaleDateString("en-AU", { month: "short" });
+  //         if (data[key]) {
+  //           data[key].sales += order.total_ex_gst;
+  //         }
+  //       }
+  //     });
+  //   } else {
+  //     // All time
+  //     orders.forEach((order) => {
+  //       const d = new Date(order.order_date);
+  //       const key = d.toLocaleDateString("en-AU", {
+  //         month: "short",
+  //         year: "2-digit",
+  //       });
+  //       const sortDate = new Date(
+  //         d.getFullYear(),
+  //         d.getMonth(),
+  //         1
+  //       ).getTime();
 
-        if (!data[key]) {
-          data[key] = { sales: 0, sortDate };
-        }
+  //       if (!data[key]) {
+  //         data[key] = { sales: 0, sortDate };
+  //       }
 
-        data[key].sales += order.total_ex_gst;
-      });
-    }
+  //       data[key].sales += order.total_ex_gst;
+  //     });
+  //   }
 
-    return Object.entries(data)
-      .map(([name, val]) => ({
-        name,
-        sales: val.sales,
-        sortDate: val.sortDate,
-      }))
-      .sort((a, b) => a.sortDate - b.sortDate);
-  }, [orders, chartPeriod]);
+  //   return Object.entries(data)
+  //     .map(([name, val]) => ({
+  //       name,
+  //       sales: val.sales,
+  //       sortDate: val.sortDate,
+  //     }))
+  //     .sort((a, b) => a.sortDate - b.sortDate);
+  // }, [orders, chartPeriod]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -225,7 +225,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        <div className="h-[300px]">
+        {/* <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData}>
               <defs>
@@ -277,7 +277,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
+        </div> */}
       </div>
     </div>
   );
