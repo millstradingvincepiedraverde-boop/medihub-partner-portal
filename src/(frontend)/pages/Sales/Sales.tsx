@@ -1,5 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { DollarSign, Calendar, Users, ShoppingBag } from "lucide-react";
+import StatCard from "../../../(frontend)/components/StatCard";
+import { formatCurrency } from "../../../backend/services/dataService";
+import {
+  DollarSign,
+  Calendar,
+  Users,
+  ShoppingBag,
+} from "lucide-react";
 
 type Period = "daily" | "weekly" | "monthly" | "annually";
 
@@ -11,68 +18,61 @@ interface ProductStat {
 
 interface SalesProps {
   orders: any[];
-  locations: any[];
 }
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
-};
-
-const StatCard = ({ title, value, icon: Icon }) => (
-  <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-800">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-zinc-400 text-sm">{title}</p>
-        <p className="text-2xl font-bold text-white mt-1">{value}</p>
-      </div>
-      <Icon className="w-8 h-8 text-zinc-600" />
-    </div>
-  </div>
-);
-
-const Sales: React.FC<SalesProps> = ({ orders, locations }) => {
+const Sales: React.FC<SalesProps> = ({ orders }) => {
   const [period, setPeriod] = useState<Period>("monthly");
 
-  // Calculate stats from orders
-  const revenue = useMemo(() => {
-    return orders.reduce((sum, order) => sum + (order.revenue || 0), 0);
-  }, [orders]);
+  /**
+   * =====================
+   * Aggregated Stats
+   * =====================
+   */
+  const revenue = useMemo(
+    () => orders.reduce((sum, o) => sum + (o.revenue ?? 0), 0),
+    [orders]
+  );
 
-  const referralFees = useMemo(() => {
-    return orders.reduce((sum, order) => sum + (order.referralFee || 0), 0);
-  }, [orders]);
+  const referralFees = useMemo(
+    () => orders.reduce((sum, o) => sum + (o.referralFee ?? 0), 0),
+    [orders]
+  );
 
   const customers = useMemo(() => {
-    const uniqueCustomers = new Set(orders.map(order => order.customerId || order.customer_id));
-    return uniqueCustomers.size;
+    const unique = new Set(
+      orders.map((o) => o.customerId ?? o.customer_id)
+    );
+    return unique.size;
   }, [orders]);
 
-  const unitsSold = useMemo(() => {
-    return orders.reduce((sum, order) => sum + (order.quantity || 0), 0);
-  }, [orders]);
+  const unitsSold = useMemo(
+    () => orders.reduce((sum, o) => sum + (o.quantity ?? 0), 0),
+    [orders]
+  );
 
-  // Aggregate products from orders
-  const products = useMemo(() => {
-    const productMap = new Map<string, ProductStat>();
+  /**
+   * =====================
+   * Products aggregation
+   * =====================
+   */
+  const products = useMemo<ProductStat[]>(() => {
+    const map = new Map<string, ProductStat>();
 
-    orders.forEach(order => {
-      const title = order.productTitle || order.product_title || 'Unknown Product';
-      const quantity = order.quantity || 0;
-      const revenue = order.revenue || 0;
+    orders.forEach((o) => {
+      const title = o.productTitle ?? o.product_title ?? "Unknown Product";
+      const quantity = o.quantity ?? 0;
+      const revenue = o.revenue ?? 0;
 
-      if (productMap.has(title)) {
-        const existing = productMap.get(title)!;
-        existing.quantity += quantity;
-        existing.revenue += revenue;
-      } else {
-        productMap.set(title, { title, quantity, revenue });
+      if (!map.has(title)) {
+        map.set(title, { title, quantity: 0, revenue: 0 });
       }
+
+      const item = map.get(title)!;
+      item.quantity += quantity;
+      item.revenue += revenue;
     });
 
-    return Array.from(productMap.values());
+    return Array.from(map.values());
   }, [orders]);
 
   const productsByQuantity = useMemo(
@@ -90,23 +90,27 @@ const Sales: React.FC<SalesProps> = ({ orders, locations }) => {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-white">Sales Analytics</h2>
-        <p className="text-zinc-400">Revenue & performance breakdown.</p>
+        <p className="text-zinc-400">
+          Revenue & performance breakdown.
+        </p>
       </div>
 
       {/* Period Selector */}
       <div className="bg-zinc-950 p-1 rounded-lg border border-zinc-800 w-fit">
-        {(["daily", "weekly", "monthly", "annually"] as Period[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            className={`px-3 py-1.5 text-xs rounded-md ${period === p
-                ? "bg-zinc-800 text-white"
-                : "text-zinc-400 hover:text-white"
-              }`}
-          >
-            {p}
-          </button>
-        ))}
+        {(["daily", "weekly", "monthly", "annually"] as Period[]).map(
+          (p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-3 py-1.5 text-xs rounded-md ${period === p
+                  ? "bg-zinc-800 text-white"
+                  : "text-zinc-400 hover:text-white"
+                }`}
+            >
+              {p}
+            </button>
+          )
+        )}
       </div>
 
       {/* Stat Cards */}
@@ -149,15 +153,28 @@ const Sales: React.FC<SalesProps> = ({ orders, locations }) => {
               </tr>
             </thead>
             <tbody>
-              {productsByQuantity.map((p) => (
-                <tr
-                  key={p.title}
-                  className="border-b border-zinc-800 last:border-none"
-                >
-                  <td className="py-2 text-white">{p.title}</td>
-                  <td className="py-2 text-right text-white">{p.quantity}</td>
+              {productsByQuantity.length ? (
+                productsByQuantity.map((p) => (
+                  <tr
+                    key={p.title}
+                    className="border-b border-zinc-800 last:border-none"
+                  >
+                    <td className="py-2 text-white">{p.title}</td>
+                    <td className="py-2 text-right text-white">
+                      {p.quantity}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={2}
+                    className="py-4 text-center text-zinc-500"
+                  >
+                    No product data
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -176,17 +193,28 @@ const Sales: React.FC<SalesProps> = ({ orders, locations }) => {
               </tr>
             </thead>
             <tbody>
-              {productsByRevenue.map((p) => (
-                <tr
-                  key={p.title}
-                  className="border-b border-zinc-800 last:border-none"
-                >
-                  <td className="py-2 text-white">{p.title}</td>
-                  <td className="py-2 text-right text-white">
-                    {formatCurrency(p.revenue)}
+              {productsByRevenue.length ? (
+                productsByRevenue.map((p) => (
+                  <tr
+                    key={p.title}
+                    className="border-b border-zinc-800 last:border-none"
+                  >
+                    <td className="py-2 text-white">{p.title}</td>
+                    <td className="py-2 text-right text-white">
+                      {formatCurrency(p.revenue)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={2}
+                    className="py-4 text-center text-zinc-500"
+                  >
+                    No product data
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -205,25 +233,4 @@ const Sales: React.FC<SalesProps> = ({ orders, locations }) => {
   );
 };
 
-// Demo with sample data
-export default function App() {
-  const sampleProducts: ProductStat[] = [
-    { title: "Premium Widget", quantity: 145, revenue: 14500 },
-    { title: "Standard Widget", quantity: 230, revenue: 11500 },
-    { title: "Deluxe Package", quantity: 89, revenue: 17800 },
-    { title: "Starter Kit", quantity: 312, revenue: 9360 },
-    { title: "Pro Bundle", quantity: 67, revenue: 13400 },
-  ];
-
-  return (
-    <div className="min-h-screen bg-black p-8">
-      <Sales
-        revenue={66560}
-        referralFees={3328}
-        customers={843}
-        unitsSold={843}
-        products={sampleProducts}
-      />
-    </div>
-  );
-}
+export default Sales;
