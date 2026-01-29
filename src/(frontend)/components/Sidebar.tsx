@@ -14,7 +14,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout, isMobileOpen, setIsMobileOpen, partnerName }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'sales', label: 'Sales', icon: ShoppingCart },
+    { id: 'sales', label: 'Analytics', icon: ShoppingCart },
     { id: 'locations', label: 'Locations', icon: MapPin },
     { id: 'devices', label: 'Devices', icon: Tablet },
     { id: 'report', label: 'Report a Problem', icon: AlertTriangle },

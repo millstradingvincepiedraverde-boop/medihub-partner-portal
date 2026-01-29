@@ -18,28 +18,41 @@ export enum OrderStatus {
 }
 
 export interface Partner {
-  partner_id: string;
-  partner_name: string;
-  attio_company_id: string;
-  email: string; 
+  id: number;                 // user id
+  company_id: string;         // company UUID
+  email: string;
+  role: string;
+  name?: string;
 }
 
 export interface Location {
+  _id: string;
   location_id: string;
   partner_id: string;
   location_name: string;
   attio_location_id: string;
 }
 
+export interface OrderItem {
+  product_id: string;
+  title: string;
+  quantity: number;
+  price: number;
+}
+
 export interface Order {
   order_id: string;
-  order_date: string; // ISO Date string
+  order_date: string;
   partner_id: string;
   location_id: string;
   total_ex_gst: number;
   commission_amount: number;
   status: OrderStatus;
+
+  items?: OrderItem[]; // ✅ ADD THIS
 }
+
+
 
 export interface Device {
   device_id: string;

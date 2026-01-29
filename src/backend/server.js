@@ -208,14 +208,25 @@ require('dotenv').config();
 
 const dashboardRoute = require('./routes/dashboard');
 const analyticsRoute = require("./routes/analytics");
+const filterRoutes = require("./routes/filter");
+const sanityRoutes = require("./routes/sanity");
+const locationRoutes = require("./routes/locations");
+const companyRoutes = require("./routes/companyRoutes");
+const deviceRoutes = require("./routes/devices");
+const protectedRoutes = require("./routes/protected.route")
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Mount routes
 app.use('/api', dashboardRoute);
 app.use('/api', analyticsRoute);
+app.use('/api', filterRoutes);
+app.use("/api", protectedRoutes);
+app.use("/api/sanity", sanityRoutes);
+app.use("/api/locations", locationRoutes);
+app.use("/api/devices", deviceRoutes);
+app.use('/api/companies', companyRoutes);
 
 app.listen(3001, () => {
   console.log('🚀 Backend running on http://localhost:3001');

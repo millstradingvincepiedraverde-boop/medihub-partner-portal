@@ -1,208 +1,247 @@
-import React, { useState, useEffect } from 'react';
-import Sidebar from '../(frontend)/components/Sidebar';
-import Dashboard from '../(frontend)/pages/Dashboard/Dashboard';
-import Sales from '../(frontend)/pages/Sales/Sales';
-import Locations from '../(frontend)/pages/Locations/Locations';
-import Devices from '../(frontend)/pages/Devices/Devices';
-import ReportProblem from '../(frontend)/pages/ReportProblem/ReportProblem';
-import Feedback from '../(frontend)/pages/Feedback/Feedback';
-import { PARTNERS } from '../../constants';
-import { Partner } from '../../types';
-import { getPartnerDevices, getPartnerLocations } from '../backend/services/dataService';
-import { Menu, Loader2 } from 'lucide-react';
-import Logo from '../(frontend)/components/Logo';
+import React, { useState, useEffect } from "react";
+import Sidebar from "../(frontend)/components/Sidebar";
+import { Loader2 } from "lucide-react";
+import Logo from "../(frontend)/components/Logo";
+import { Partner, Location } from "../../types";
+import {
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+} from "firebase/auth";
+import { auth } from "../(frontend)/firebase/firebase.client";
+import AppRoutes from "./AppRoutes";
 
-const API_URL = 'http://localhost:3001';
+const API_URL = "http://localhost:3001";
+
+/* ========================= PAGE TYPE ========================= */
+export type Page =
+  | "dashboard"
+  | "sales"
+  | "locations"
+  | "devices"
+  | "report"
+  | "feedback";
 
 const App: React.FC = () => {
-  // Auth State (Mock)
+  /* ========================= AUTH ========================= */
+  const [authLoading, setAuthLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Partner | null>(null);
+
+  /* ========================= NAV ========================= */
+  const [activePage, setActivePage] = useState<Page>("dashboard");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Navigation State
-  const [activePage, setActivePage] = useState('dashboard');
+  /* ========================= DASHBOARD ========================= */
+  const [orders, setOrders] = useState<any[]>([]);
+  const [lifetimeRevenue, setLifetimeRevenue] = useState(0);
+  const [lifetimeReferralFees, setLifetimeReferralFees] = useState(0);
 
-  // Data State
-  const [data, setData] = useState({
-    orders: [],
-    locations: [],
-    devices: [],
-    lifetimeRevenue: 0,
-    lifetimeReferralFees: 0,
-    lifetimeQuantitiesSold: 0,
-  });
+  /* ========================= LOCATIONS ========================= */
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [selectedLocation, setSelectedLocation] =
+    useState<Location | null>(null);
 
+  /* ========================= UI ========================= */
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load data when user changes
+  /* ========================= LOGIN FORM ========================= */
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  /* ========================= RESTORE SESSION ========================= */
   useEffect(() => {
-    if (currentUser) {
-      const id = currentUser.partner_id;
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser?.email) {
+        setCurrentUser(null);
+        setAuthLoading(false);
+        return;
+      }
 
-      // Fetch dashboard data from API
-      const fetchDashboardData = async () => {
-        try {
-          setLoading(true);
-          setError(null);
+      try {
+        const res = await fetch(
+          `${API_URL}/api/companies/by-email?email=${firebaseUser.email}`
+        );
+        const json = await res.json();
+        setCurrentUser(json?.data || null);
+      } catch (err) {
+        console.error("Auth restore failed", err);
+        setCurrentUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    });
 
-          const response = await fetch(`${API_URL}/api/dashboard`);
+    return () => unsubscribe();
+  }, []);
 
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
+  /* ========================= DASHBOARD DATA ========================= */
+  useEffect(() => {
+    if (!currentUser?.company_id) return;
 
-          const dashboardData = await response.json();
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(
+          `${API_URL}/api/dashboard?companyId=${currentUser.company_id}`
+        );
+        const json = await res.json();
+        setOrders(json.orders || []);
+        setLifetimeRevenue(json.lifetimeRevenue || 0);
+        setLifetimeReferralFees(json.lifetimeReferralFees || 0);
+      } catch {
+        setError("Failed to load dashboard");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-          // Calculate lifetime quantities sold from orders
-          const lifetimeQuantitiesSold = dashboardData.orders.reduce(
-            (sum: number, order: any) =>
-              sum +
-              order.items.reduce(
-                (itemSum: number, item: any) => itemSum + item.quantity,
-                0
-              ),
-            0
-          );
-
-          setData({
-            orders: dashboardData.orders,
-            lifetimeRevenue: dashboardData.lifetimeRevenue,
-            lifetimeReferralFees: dashboardData.lifetimeReferralFees,
-            lifetimeQuantitiesSold,
-            locations: getPartnerLocations(id) as any,
-            devices: getPartnerDevices(id) as any,
-          });
-        } catch (err) {
-          console.error('Error fetching dashboard data:', err);
-          setError(err instanceof Error ? err.message : 'Failed to fetch data');
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchDashboardData();
-      setActivePage('dashboard');
-    }
+    fetchDashboard();
+    setActivePage("dashboard");
   }, [currentUser]);
 
-  // Mock Login Screen
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-zinc-900 p-8 rounded-2xl shadow-xl border border-zinc-800">
-          <div className="text-center mb-8">
-            <Logo className="h-12 w-auto mx-auto mb-6 text-white" />
-            <p className="text-zinc-400">Partner Access Point</p>
-          </div>
+  /* ========================= LOCATIONS ========================= */
+  useEffect(() => {
+    if (!currentUser?.company_id) return;
 
-          <div className="space-y-4">
-            <p className="text-sm font-medium text-zinc-500 mb-2">Select a demo partner to log in:</p>
-            {PARTNERS.map(p => (
-              <button
-                key={p.partner_id}
-                onClick={() => setCurrentUser(p)}
-                className="w-full p-4 text-left rounded-xl border border-zinc-800 bg-zinc-950 hover:border-white hover:bg-zinc-900 transition-all group"
-              >
-                <div className="font-bold text-white group-hover:text-white">{p.partner_name}</div>
-                <div className="text-sm text-zinc-500">{p.email}</div>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-zinc-800 text-center text-xs text-zinc-600">
-            Secure Partner Access v1.0.0
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-zinc-950">
-        <Sidebar
-          activePage={activePage}
-          onNavigate={setActivePage}
-          onLogout={() => setCurrentUser(null)}
-          isMobileOpen={isMobileMenuOpen}
-          setIsMobileOpen={setIsMobileMenuOpen}
-          partnerName={currentUser.partner_name}
-        />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="w-12 h-12 text-zinc-400 animate-spin mx-auto mb-4" />
-            <p className="text-zinc-400">Loading dashboard data...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const renderPage = () => {
-    switch (activePage) {
-      case 'dashboard':
-        return (
-          <Dashboard
-            orders={data.orders}
-            lifetimeRevenue={data.lifetimeRevenue}
-            lifetimeReferralFees={data.lifetimeReferralFees}
-          />
+    const fetchLocations = async () => {
+      try {
+        setLocationsLoading(true);
+        const res = await fetch(
+          `${API_URL}/api/locations?companyId=${currentUser.company_id}`
         );
-      case 'sales':
-        return <Sales orders={data.orders} locations={data.locations} />;
-      case 'locations':
-        return <Locations locations={data.locations} />;
-      case 'devices':
-        return <Devices devices={data.devices} locations={data.locations} />;
-      case 'report':
-        return <ReportProblem locations={data.locations} devices={data.devices} partner={currentUser} />;
-      case 'feedback':
-        return <Feedback partner={currentUser} />;
-      default:
-        return (
-          <Dashboard
-            orders={data.orders}
-            lifetimeRevenue={data.lifetimeRevenue}
-            lifetimeReferralFees={data.lifetimeReferralFees}
-          />
-        );
-    }
+        const json = await res.json();
+        setLocations(json.data || []);
+      } finally {
+        setLocationsLoading(false);
+      }
+    };
+
+    fetchLocations();
+  }, [currentUser]);
+
+  /* ========================= NAV HANDLERS ========================= */
+  const handleSelectLocation = (location: Location) => {
+    setSelectedLocation(location);
+    setActivePage("devices");
   };
 
+  const handleBackToLocations = () => {
+    setSelectedLocation(null);
+    setActivePage("locations");
+  };
+
+  /* ========================= AUTH LOADING GUARD (CRITICAL FIX) ========================= */
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-950">
+        <Loader2 className="w-10 h-10 animate-spin text-zinc-400" />
+      </div>
+    );
+  }
+
+  /* ========================= LOGIN ========================= */
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-zinc-900 p-8 rounded-2xl border border-zinc-800">
+          <Logo className="h-12 mx-auto mb-6" />
+
+          <form
+            className="space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setAuthError(null);
+
+              try {
+                const cred = await signInWithEmailAndPassword(
+                  auth,
+                  email,
+                  password
+                );
+
+                const res = await fetch(
+                  `${API_URL}/api/companies/by-email?email=${cred.user.email}`
+                );
+                const json = await res.json();
+
+                if (!json.data) {
+                  throw new Error("No company linked to this account");
+                }
+
+                setCurrentUser(json.data);
+              } catch (err: any) {
+                setAuthError(err.message || "Login failed");
+              }
+            }}
+          >
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="w-full p-3 rounded bg-zinc-950 border border-zinc-800 text-white"
+              required
+            />
+
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              className="w-full p-3 rounded bg-zinc-950 border border-zinc-800 text-white"
+              required
+            />
+
+            {authError && (
+              <div className="text-red-400 text-sm">{authError}</div>
+            )}
+
+            <button className="w-full p-3 rounded-xl bg-white text-black font-bold hover:bg-zinc-200">
+              Login
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  /* ========================= APP ========================= */
   return (
-    <div className="flex h-screen bg-zinc-950 overflow-hidden font-sans text-zinc-100">
+    <div className="flex h-screen bg-zinc-950 text-zinc-100">
       <Sidebar
         activePage={activePage}
-        onNavigate={setActivePage}
-        onLogout={() => setCurrentUser(null)}
+        onNavigate={(page: Page) => {
+          if (page !== "devices") setSelectedLocation(null);
+          setActivePage(page);
+        }}
+        onLogout={() => {
+          auth.signOut();
+          setCurrentUser(null);
+        }}
         isMobileOpen={isMobileMenuOpen}
         setIsMobileOpen={setIsMobileMenuOpen}
-        partnerName={currentUser.partner_name}
+        partnerName={currentUser.name}
       />
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* Top Mobile Header */}
-        <header className="lg:hidden bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between">
-          <Logo className="h-6 w-auto text-white" />
-          <button onClick={() => setIsMobileMenuOpen(true)} className="text-zinc-400 hover:text-white">
-            <Menu size={24} />
-          </button>
-        </header>
-
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
-          <div className="max-w-7xl mx-auto">
-            {error ? (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400">
-                Error loading data: {error}
-              </div>
-            ) : (
-              renderPage()
-            )}
-          </div>
-        </main>
+      <div className="flex-1 overflow-y-auto p-6">
+        {error ? (
+          <div className="text-red-400">{error}</div>
+        ) : (
+          <AppRoutes
+            activePage={activePage}
+            orders={orders}
+            lifetimeRevenue={lifetimeRevenue}
+            lifetimeReferralFees={lifetimeReferralFees}
+            locations={locations}
+            locationsLoading={locationsLoading}
+            selectedLocation={selectedLocation}
+            currentUser={currentUser}
+            onSelectLocation={handleSelectLocation}
+            onBackToLocations={handleBackToLocations}
+          />
+        )}
       </div>
     </div>
   );
